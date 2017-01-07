@@ -43,6 +43,7 @@ target_link_libraries(z-car_app
    ${EO_LIBRARIES}
    ${ECORE_LIBRARIES}
    ${ECORE_CON_LIBRARIES}
+   ${ECORE_INPUT_LIBRARIES}
    ${EVAS_LIBRARIES}
    ${EMOTION_LIBRARIES}
    ecore_file

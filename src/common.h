@@ -3,6 +3,7 @@
 
 #include <Eina.h>
 #include <Ecore.h>
+#include "Ecore_Input.h"
 #include <Ecore_Con.h>
 #include <Elementary.h>
 
