@@ -25,29 +25,29 @@ static Eina_Bool
 _keyboard_event(void *data EINA_UNUSED, int type, void *event)
 {
    static unsigned int _up_key = 0, _down_key = 0;
-   static int _up_down_pressure = 0;
+   static int _vpressure = 0;
    Ecore_Event_Key *e = event;
 
    if (!_up_key && !strcmp(e->keyname, "Up")) _up_key = e->keycode;
    if (!_down_key && !strcmp(e->keyname, "Down")) _down_key = e->keycode;
 
-   int old_pressure = _up_down_pressure;
+   int old_vpressure = _vpressure;
    /* Released */
    if (type == ECORE_EVENT_KEY_UP)
      {
-        if (e->keycode == _up_key && _up_down_pressure > 0) _up_down_pressure = 0;
-        if (e->keycode == _down_key && _up_down_pressure < 0) _up_down_pressure = 0;
+        if (e->keycode == _up_key && _vpressure > 0) _vpressure = 0;
+        if (e->keycode == _down_key && _vpressure < 0) _vpressure = 0;
      }
 
    /* Pressed */
    if (type == ECORE_EVENT_KEY_DOWN)
      {
-        if (e->keycode == _up_key && !_up_down_pressure) _up_down_pressure = 127;
-        if (e->keycode == _down_key && !_up_down_pressure) _up_down_pressure = -128;
+        if (e->keycode == _up_key && !_vpressure) _vpressure = 127;
+        if (e->keycode == _down_key && !_vpressure) _vpressure = -128;
      }
 
-   if (old_pressure != _up_down_pressure)
-      printf("Pressure: %d -> %d\n", old_pressure, _up_down_pressure);
+   if (old_vpressure != _vpressure)
+      printf("Pressure: %d -> %d\n", old_vpressure, _vpressure);
 
    return ECORE_CALLBACK_PASS_ON;
 }
