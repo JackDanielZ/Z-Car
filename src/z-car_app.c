@@ -26,7 +26,7 @@ _keyboard_event(void *data EINA_UNUSED, int type, void *event)
 {
    static unsigned int _right_key = 0, _left_key = 0;
    static unsigned int _up_key = 0, _down_key = 0;
-   static int _vpressure = 0, _hpressure = 0;
+   static char _vpressure = 0, _hpressure = 0;
    Ecore_Event_Key *e = event;
 
    if (!_up_key && !strcmp(e->keyname, "Up")) _up_key = e->keycode;
@@ -54,9 +54,19 @@ _keyboard_event(void *data EINA_UNUSED, int type, void *event)
      }
 
    if (old_vpressure != _vpressure || old_hpressure != _hpressure)
-      printf("Pressure: (%d, %d) -> (%d, %d)\n",
-            old_vpressure, old_hpressure,
-            _vpressure, _hpressure);
+     {
+        printf("Pressure: (%d, %d) -> (%d, %d)\n",
+              old_vpressure, old_hpressure,
+              _vpressure, _hpressure);
+        if (_s)
+          {
+             char tmp[2];
+             tmp[0] = _vpressure;
+             tmp[1] = _hpressure;
+             ecore_con_server_send(_s, tmp, 2);
+             ecore_con_server_flush(_s);
+          }
+     }
 
    return ECORE_CALLBACK_PASS_ON;
 }
