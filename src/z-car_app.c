@@ -24,19 +24,24 @@ _conn_del(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 static Eina_Bool
 _keyboard_event(void *data EINA_UNUSED, int type, void *event)
 {
+   static unsigned int _right_key = 0, _left_key = 0;
    static unsigned int _up_key = 0, _down_key = 0;
-   static int _vpressure = 0;
+   static int _vpressure = 0, _hpressure = 0;
    Ecore_Event_Key *e = event;
 
    if (!_up_key && !strcmp(e->keyname, "Up")) _up_key = e->keycode;
    if (!_down_key && !strcmp(e->keyname, "Down")) _down_key = e->keycode;
+   if (!_right_key && !strcmp(e->keyname, "Right")) _right_key = e->keycode;
+   if (!_left_key && !strcmp(e->keyname, "Left")) _left_key = e->keycode;
 
-   int old_vpressure = _vpressure;
+   int old_vpressure = _vpressure, old_hpressure = _hpressure;
    /* Released */
    if (type == ECORE_EVENT_KEY_UP)
      {
         if (e->keycode == _up_key && _vpressure > 0) _vpressure = 0;
         if (e->keycode == _down_key && _vpressure < 0) _vpressure = 0;
+        if (e->keycode == _right_key && _hpressure > 0) _hpressure = 0;
+        if (e->keycode == _left_key && _hpressure < 0) _hpressure = 0;
      }
 
    /* Pressed */
@@ -44,10 +49,14 @@ _keyboard_event(void *data EINA_UNUSED, int type, void *event)
      {
         if (e->keycode == _up_key && !_vpressure) _vpressure = 127;
         if (e->keycode == _down_key && !_vpressure) _vpressure = -128;
+        if (e->keycode == _right_key && !_hpressure) _hpressure = 127;
+        if (e->keycode == _left_key && !_hpressure) _hpressure = -128;
      }
 
-   if (old_vpressure != _vpressure)
-      printf("Pressure: %d -> %d\n", old_vpressure, _vpressure);
+   if (old_vpressure != _vpressure || old_hpressure != _hpressure)
+      printf("Pressure: (%d, %d) -> (%d, %d)\n",
+            old_vpressure, old_hpressure,
+            _vpressure, _hpressure);
 
    return ECORE_CALLBACK_PASS_ON;
 }
