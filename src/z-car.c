@@ -267,7 +267,7 @@ _conn_data(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 static Eina_Bool
 _server_launch()
 {
-   ecore_con_server_add(ECORE_CON_REMOTE_TCP, "127.0.0.1", CAR_PORT, NULL);
+   ecore_con_server_add(ECORE_CON_REMOTE_TCP, "0.0.0.0", CAR_PORT, NULL);
    ecore_event_handler_add(ECORE_CON_EVENT_CLIENT_ADD, _conn_add, NULL);
    ecore_event_handler_add(ECORE_CON_EVENT_CLIENT_DEL, _conn_del, NULL);
    ecore_event_handler_add(ECORE_CON_EVENT_CLIENT_DATA, _conn_data, NULL);
