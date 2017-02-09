@@ -14,7 +14,6 @@ static Ecore_Con_Client *_c = NULL;
 
 typedef struct
 {
-   int ena_pin;
    int in1_pin;
    int in2_pin;
 } Motor_Config;
@@ -22,14 +21,12 @@ typedef struct
 static Motor_Config motors [] =
 {
      {
-        .ena_pin = 0,
-        .in1_pin = 0,
-        .in2_pin = 0
+        .in1_pin = 20,
+        .in2_pin = 21
      },
      {
-        .ena_pin = 0,
-        .in1_pin = 0,
-        .in2_pin = 0
+        .in1_pin = 23,
+        .in2_pin = 24
      }
 };
 
@@ -160,17 +157,12 @@ _GPIOWrite(int pin, int value)
 }
 
 static void
-_motor_configure(int motor_id, Eina_Bool enable, Eina_Bool clockwise)
+_motor_configure(int motor_id, Eina_Bool clockwise)
 {
-   printf("Motor %d: %s %s\n", motor_id,
-         enable?"enabled":"disabled",
+   printf("Motor %d: %s\n", motor_id,
          clockwise?"clockwise":"anti-clockwise");
-   _GPIOWrite(motors[motor_id].ena_pin, !!enable);
-   if (enable)
-     {
-        _GPIOWrite(motors[motor_id].in1_pin, !clockwise);
-        _GPIOWrite(motors[motor_id].in2_pin, !!clockwise);
-     }
+   _GPIOWrite(motors[motor_id].in1_pin, !clockwise);
+   _GPIOWrite(motors[motor_id].in2_pin, !!clockwise);
 }
 
 static Eina_Bool
@@ -254,18 +246,18 @@ _conn_data(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
         p = eina_list_last_data_get(pq);
         if (!p)
           {
-             _motor_configure(0, EINA_FALSE, EINA_TRUE);
-             _motor_configure(1, EINA_FALSE, EINA_TRUE);
+             _motor_configure(0, EINA_TRUE);
+             _motor_configure(1, EINA_TRUE);
           }
         else if (p[0])
           {
-             _motor_configure(0, EINA_TRUE, p[0] > 0);
-             _motor_configure(1, EINA_TRUE, p[0] < 0);
+             _motor_configure(0, p[0] > 0);
+             _motor_configure(1, p[0] < 0);
           }
         else if (p[1])
           {
-             _motor_configure(0, EINA_TRUE, p[1] > 0);
-             _motor_configure(1, EINA_TRUE, p[1] > 0);
+             _motor_configure(0, p[1] > 0);
+             _motor_configure(1, p[1] > 0);
           }
         return ECORE_CALLBACK_DONE;
      }
@@ -295,8 +287,7 @@ int main()
     */
    for (i = 0; i < 2; i++)
      {
-        if (!_GPIOExport(motors[i].ena_pin) ||
-              !_GPIOExport(motors[i].in1_pin) ||
+        if (!_GPIOExport(motors[i].in1_pin) ||
               !_GPIOExport(motors[i].in2_pin)) return -1;
      }
 
@@ -305,8 +296,7 @@ int main()
     */
    for (i = 0; i < 2; i++)
      {
-        if (!_GPIODirection(motors[i].ena_pin, OUT) ||
-              !_GPIODirection(motors[i].in1_pin, OUT) ||
+        if (!_GPIODirection(motors[i].in1_pin, OUT) ||
               !_GPIODirection(motors[i].in2_pin, OUT)) return -1;
      }
 
@@ -319,9 +309,8 @@ int main()
     */
    for (i = 0; i < 2; i++)
      {
-        if (!_GPIOUnexport(motors[i].ena_pin) ||
-              !_GPIOUnexport(motors[i].in1_pin) ||
-              !_GPIOUnexport(motors[i].in2_pin)) return -1;
+        _GPIOUnexport(motors[i].in1_pin);
+        _GPIOUnexport(motors[i].in2_pin);
      }
 
    ecore_con_shutdown();
