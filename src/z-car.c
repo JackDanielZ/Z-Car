@@ -157,12 +157,11 @@ _GPIOWrite(int pin, int value)
 }
 
 static void
-_motor_configure(int motor_id, Eina_Bool clockwise)
+_motor_configure(int motor_id, int in1, int in2)
 {
-   printf("Motor %d: %s\n", motor_id,
-         clockwise?"clockwise":"anti-clockwise");
-   _GPIOWrite(motors[motor_id].in1_pin, !clockwise);
-   _GPIOWrite(motors[motor_id].in2_pin, !!clockwise);
+   printf("Motor %d In1 %d in2 %d\n", motor_id, in1, in2);
+   _GPIOWrite(motors[motor_id].in1_pin, !!in1);
+   _GPIOWrite(motors[motor_id].in2_pin, !!in2);
 }
 
 static Eina_Bool
@@ -246,18 +245,21 @@ _conn_data(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
         p = eina_list_last_data_get(pq);
         if (!p)
           {
-             _motor_configure(0, EINA_TRUE);
-             _motor_configure(1, EINA_TRUE);
+             /* No move */
+             _motor_configure(0, 0, 0);
+             _motor_configure(1, 0, 0);
           }
         else if (p[0])
           {
-             _motor_configure(0, p[0] > 0);
-             _motor_configure(1, p[0] < 0);
+             /* Vertical move */
+             _motor_configure(0, p[0] > 0, p[0] < 0);
+             _motor_configure(1, p[0] < 0, p[0] > 0);
           }
         else if (p[1])
           {
-             _motor_configure(0, p[1] > 0);
-             _motor_configure(1, p[1] > 0);
+             /* Horizontal move */
+             _motor_configure(0, p[1] > 0, p[1] < 0);
+             _motor_configure(1, p[1] > 0, p[1] < 0);
           }
         return ECORE_CALLBACK_DONE;
      }
