@@ -200,7 +200,7 @@ _conn_data(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
    Eina_List *itr, *itr2;
    if (_c == ev->client && ev->size == 2)
      {
-        char *new_p = ev->data, *p;
+        signed char *new_p = ev->data, *p;
         printf("Pressure: (%d, %d)\n", new_p[0], new_p[1]);
         if (curr_pv != new_p[0])
           {
