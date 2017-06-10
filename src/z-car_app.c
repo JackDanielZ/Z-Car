@@ -88,7 +88,7 @@ int main(int argc, char **argv)
    ecore_con_init();
    elm_init(argc, argv);
 
-   _server_connect("192.168.1.22");
+   _server_connect("Car");
 
    ecore_event_handler_add(ECORE_EVENT_KEY_DOWN, _keyboard_event, NULL);
    ecore_event_handler_add(ECORE_EVENT_KEY_UP, _keyboard_event, NULL);
