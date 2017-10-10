@@ -226,7 +226,7 @@ _conn_data(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
         else if (new_p[0] && new_p[1])
           {
              if (new_p[0] != curr_pv) new_pv = new_p[0];
-             else new_ph = new_p[1];
+             else if (new_p[1] != curr_ph) new_ph = new_p[1];
           }
         curr_pv = new_p[0];
         curr_ph = new_p[1];
