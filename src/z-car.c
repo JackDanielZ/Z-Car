@@ -43,7 +43,7 @@ _GPIOExport(int pin)
 
    if (-1 == fd)
      {
-        fprintf(stderr, "Failed to open export for writing!\n");
+        fprintf(stderr, "Failed to open export for writing (pin %d)!\n", pin);
         return EINA_FALSE;
      }
 
@@ -63,7 +63,7 @@ _GPIOUnexport(int pin)
    int fd = open("/sys/class/gpio/unexport", O_WRONLY);
    if (-1 == fd)
      {
-        fprintf(stderr, "Failed to open unexport for writing!\n");
+        fprintf(stderr, "Failed to open unexport for writing (pin %d)!\n", pin);
         return EINA_FALSE;
      }
 
@@ -71,6 +71,20 @@ _GPIOUnexport(int pin)
    write(fd, buffer, bytes_written);
    close(fd);
    return EINA_TRUE;
+}
+
+static Eina_Bool
+_GPIOExists(int pin)
+{
+   if (_is_test) return EINA_TRUE;
+#define DIRECTION_MAX 35
+   char path[DIRECTION_MAX];
+   int fd;
+
+   snprintf(path, DIRECTION_MAX, "/sys/class/gpio/gpio%d/direction", pin);
+   fd = open(path, O_WRONLY);
+   if (fd != -1) close(fd);
+   return (fd > 0);
 }
 
 static Eina_Bool
@@ -85,13 +99,13 @@ _GPIODirection(int pin, const char *dir)
    fd = open(path, O_WRONLY);
    if (-1 == fd)
      {
-        fprintf(stderr, "Failed to open gpio direction for writing!\n");
+        fprintf(stderr, "Failed to open gpio %d direction for writing!\n", pin);
         return EINA_FALSE;
      }
 
    if (-1 == write(fd, dir, strlen(dir)))
      {
-        fprintf(stderr, "Failed to set %s direction!\n", dir);
+        fprintf(stderr, "Failed to set %s directioni for pin %d!\n", dir, pin);
         return EINA_FALSE;
      }
 
@@ -263,22 +277,32 @@ int main()
    for (i = 0; i < 2; i++)
      {
         if (!_GPIOExport(motors[i].in1_pin) ||
-              !_GPIOExport(motors[i].in2_pin)) return -1;
+              !_GPIOExport(motors[i].in2_pin)) goto end;
      }
 
+   /*
+    * Check GPIO pins are exported
+    */
+   for (i = 0; i < 2; i++)
+     {
+        while (!_GPIOExists(motors[i].in1_pin) ||
+              !_GPIOExists(motors[i].in2_pin));
+     }
    /*
     * Set GPIO directions
     */
    for (i = 0; i < 2; i++)
      {
         if (!_GPIODirection(motors[i].in1_pin, OUT) ||
-              !_GPIODirection(motors[i].in2_pin, OUT)) return -1;
+              !_GPIODirection(motors[i].in2_pin, OUT)) goto end;
      }
 
    _server_launch();
 
+   printf("Ready\n");
    elm_run();
 
+end:
    /*
     * Disable GPIO pins
     */
