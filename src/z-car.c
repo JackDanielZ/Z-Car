@@ -196,70 +196,46 @@ _conn_data(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
 {
    Ecore_Con_Event_Client_Data *ev = event;
    static int curr_pv = 0, curr_ph = 0;
-   static Eina_List *pq = NULL;
-   Eina_List *itr, *itr2;
+   int new_pv = 0, new_ph;
    if (_c == ev->client && ev->size == 2)
      {
-        signed char *new_p = ev->data, *p;
+        signed char *new_p = ev->data;
         printf("Pressure: (%d, %d)\n", new_p[0], new_p[1]);
         if (curr_pv != new_p[0])
           {
-             if (!new_p[0])
+             if (new_p[0])
                {
-                  /* Up/Down key released - we remove the stored event */
-                  EINA_LIST_FOREACH_SAFE(pq, itr, itr2, p)
-                    {
-                       if (p[0]) pq = eina_list_remove_list(pq, itr);
-                    }
-               }
-             else
-               {
-                  /* Up/Down key pressed - we append a new event */
-                  p = malloc(2);
-                  p[0] = new_p[0];
-                  p[1] = 0;
-                  pq = eina_list_append(pq, p);
+                  new_pv = new_p[0];
+                  new_ph = 0;
                }
           }
         if (curr_ph != new_p[1])
           {
-             if (!new_p[1])
+             if (new_p[1])
                {
-                  /* Right/Left key released - we remove the stored event */
-                  EINA_LIST_FOREACH_SAFE(pq, itr, itr2, p)
-                    {
-                       if (p[1]) pq = eina_list_remove_list(pq, itr);
-                    }
-               }
-             else
-               {
-                  /* Up/Down key pressed - we append a new event */
-                  p = malloc(2);
-                  p[0] = 0;
-                  p[1] = new_p[1];
-                  pq = eina_list_append(pq, p);
+                  new_pv = 0;
+                  new_ph = new_p[1];
                }
           }
         curr_pv = new_p[0];
         curr_ph = new_p[1];
-        p = eina_list_last_data_get(pq);
-        if (!p)
+        if (!new_pv && !new_ph)
           {
              /* No move */
              _motor_configure(0, 0, 0);
              _motor_configure(1, 0, 0);
           }
-        else if (p[0])
+        else if (new_pv)
           {
              /* Vertical move */
-             _motor_configure(0, p[0] > 0, p[0] < 0);
-             _motor_configure(1, p[0] < 0, p[0] > 0);
+             _motor_configure(0, new_pv > 0, new_pv < 0);
+             _motor_configure(1, new_pv < 0, new_pv > 0);
           }
-        else if (p[1])
+        else if (new_ph)
           {
              /* Horizontal move */
-             _motor_configure(0, p[1] > 0, p[1] < 0);
-             _motor_configure(1, p[1] > 0, p[1] < 0);
+             _motor_configure(0, new_ph > 0, new_ph < 0);
+             _motor_configure(1, new_ph > 0, new_ph < 0);
           }
         return ECORE_CALLBACK_DONE;
      }
