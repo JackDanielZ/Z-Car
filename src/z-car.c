@@ -1,9 +1,5 @@
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #include "common.h"
 
@@ -30,152 +26,12 @@ static Motor_Config motors [] =
      }
 };
 
-static Eina_Bool _is_test = EINA_TRUE;
-
-static Eina_Bool
-_GPIOExport(int pin)
-{
-   if (_is_test) return EINA_TRUE;
-#define BUFFER_MAX 3
-   char buffer[BUFFER_MAX];
-   ssize_t bytes_written;
-   int fd = open("/sys/class/gpio/export", O_WRONLY);
-
-   if (-1 == fd)
-     {
-        fprintf(stderr, "Failed to open export for writing (pin %d)!\n", pin);
-        return EINA_FALSE;
-     }
-
-   bytes_written = snprintf(buffer, BUFFER_MAX, "%d", pin);
-   write(fd, buffer, bytes_written);
-   close(fd);
-   return EINA_TRUE;
-}
-
-static Eina_Bool
-_GPIOUnexport(int pin)
-{
-   if (_is_test) return EINA_TRUE;
-   char buffer[BUFFER_MAX];
-   ssize_t bytes_written;
-
-   int fd = open("/sys/class/gpio/unexport", O_WRONLY);
-   if (-1 == fd)
-     {
-        fprintf(stderr, "Failed to open unexport for writing (pin %d)!\n", pin);
-        return EINA_FALSE;
-     }
-
-   bytes_written = snprintf(buffer, BUFFER_MAX, "%d", pin);
-   write(fd, buffer, bytes_written);
-   close(fd);
-   return EINA_TRUE;
-}
-
-static Eina_Bool
-_GPIOExists(int pin)
-{
-   if (_is_test) return EINA_TRUE;
-#define DIRECTION_MAX 35
-   char path[DIRECTION_MAX];
-   int fd;
-
-   snprintf(path, DIRECTION_MAX, "/sys/class/gpio/gpio%d/direction", pin);
-   fd = open(path, O_WRONLY);
-   if (fd != -1) close(fd);
-   return (fd > 0);
-}
-
-static Eina_Bool
-_GPIODirection(int pin, const char *dir)
-{
-   if (_is_test) return EINA_TRUE;
-#define DIRECTION_MAX 35
-   char path[DIRECTION_MAX];
-   int fd;
-
-   snprintf(path, DIRECTION_MAX, "/sys/class/gpio/gpio%d/direction", pin);
-   fd = open(path, O_WRONLY);
-   if (-1 == fd)
-     {
-        fprintf(stderr, "Failed to open gpio %d direction for writing!\n", pin);
-        return EINA_FALSE;
-     }
-
-   if (-1 == write(fd, dir, strlen(dir)))
-     {
-        fprintf(stderr, "Failed to set %s directioni for pin %d!\n", dir, pin);
-        return EINA_FALSE;
-     }
-
-   close(fd);
-   return EINA_TRUE;
-}
-
-#define VALUE_MAX 30
-#if 0
-static Eina_Bool
-_GPIORead(int pin)
-{
-   if (_is_test) return EINA_TRUE;
-   char path[VALUE_MAX];
-   char value_str[3];
-   int fd;
-
-   snprintf(path, VALUE_MAX, "/sys/class/gpio/gpio%d/value", pin);
-   fd = open(path, O_RDONLY);
-   if (-1 == fd)
-     {
-        fprintf(stderr, "Failed to open gpio value for reading!\n");
-        return EINA_FALSE;
-     }
-
-   if (-1 == read(fd, value_str, 3))
-     {
-        fprintf(stderr, "Failed to read value!\n");
-        return EINA_FALSE;
-     }
-
-   close(fd);
-
-   return *value_str - '0';
-}
-#endif
-
-static Eina_Bool
-_GPIOWrite(int pin, int value)
-{
-   if (_is_test) return EINA_TRUE;
-   static const char s_values_str[] = "01";
-
-   char path[VALUE_MAX];
-   int fd;
-
-   snprintf(path, VALUE_MAX, "/sys/class/gpio/gpio%d/value", pin);
-   fd = open(path, O_WRONLY);
-   if (-1 == fd)
-     {
-        fprintf(stderr, "Failed to open gpio value for writing!\n");
-        return EINA_FALSE;
-     }
-
-   if (1 != write(fd, &s_values_str[value % 2], 1))
-     {
-        fprintf(stderr, "Failed to write value!\n");
-        return EINA_FALSE;
-     }
-
-   close(fd);
-   return EINA_TRUE;
-}
-
 static void
 _motor_configure(int motor_id, int in1, int in2)
 {
    printf("Motor %d In1 %d in2 %d\n", motor_id, in1, in2);
-   _GPIOWrite(motors[motor_id].in1_pin, !!in1);
-   _GPIOWrite(motors[motor_id].in2_pin, !!in2);
+   GPIOWrite(motors[motor_id].in1_pin, !!in1);
+   GPIOWrite(motors[motor_id].in2_pin, !!in2);
 }
 
 static Eina_Bool
@@ -270,14 +126,13 @@ int main()
    ecore_init();
    ecore_con_init();
 
-   _is_test = !!getenv("CAR_TEST");
    /*
     * Enable GPIO pins
     */
    for (i = 0; i < 2; i++)
      {
-        if (!_GPIOExport(motors[i].in1_pin) ||
-              !_GPIOExport(motors[i].in2_pin)) goto end;
+        if (!GPIOExport(motors[i].in1_pin) ||
+              !GPIOExport(motors[i].in2_pin)) goto end;
      }
 
    /*
@@ -285,16 +140,16 @@ int main()
     */
    for (i = 0; i < 2; i++)
      {
-        while (!_GPIOExists(motors[i].in1_pin) ||
-              !_GPIOExists(motors[i].in2_pin));
+        while (!GPIOExists(motors[i].in1_pin) ||
+              !GPIOExists(motors[i].in2_pin));
      }
    /*
     * Set GPIO directions
     */
    for (i = 0; i < 2; i++)
      {
-        if (!_GPIODirection(motors[i].in1_pin, OUT) ||
-              !_GPIODirection(motors[i].in2_pin, OUT)) goto end;
+        if (!GPIODirection(motors[i].in1_pin, OUT) ||
+              !GPIODirection(motors[i].in2_pin, OUT)) goto end;
      }
 
    _server_launch();
@@ -308,8 +163,8 @@ end:
     */
    for (i = 0; i < 2; i++)
      {
-        _GPIOUnexport(motors[i].in1_pin);
-        _GPIOUnexport(motors[i].in2_pin);
+        GPIOUnexport(motors[i].in1_pin);
+        GPIOUnexport(motors[i].in2_pin);
      }
 
    ecore_con_shutdown();
