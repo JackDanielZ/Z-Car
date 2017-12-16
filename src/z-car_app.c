@@ -81,11 +81,96 @@ _server_connect(const char *name)
    return EINA_TRUE;
 }
 
+#define SWITCH_PIN 17
+#define SPI_MOSI_PIN 10
+#define SPI_MISO_PIN 9
+#define SPI_CLK_PIN 11
+#define SPI_CS_PIN 5
+
+static Eina_Bool
+_spi_init(void)
+{
+   if (!GPIOExport(SPI_MOSI_PIN) || !GPIOExport(SPI_MISO_PIN) ||
+         !GPIOExport(SPI_CLK_PIN) || !GPIOExport(SPI_CS_PIN) ||
+         !GPIOExport(SWITCH_PIN))
+      return EINA_FALSE;
+
+   while (!GPIOExists(SPI_MOSI_PIN) || !GPIOExists(SPI_MISO_PIN) ||
+         !GPIOExists(SPI_CLK_PIN) || !GPIOExists(SPI_CS_PIN) ||
+         !GPIOExists(SWITCH_PIN));
+
+   if (!GPIODirection(SPI_CLK_PIN, OUT) || !GPIODirection(SPI_MISO_PIN, IN) ||
+         !GPIODirection(SPI_MOSI_PIN, OUT) || !GPIODirection(SPI_CS_PIN, OUT) ||
+         !GPIODirection(SWITCH_PIN, IN))
+      return EINA_FALSE;
+   return EINA_TRUE;
+}
+
+static Eina_Bool
+_spi_a2d_read(int channel, int *value)
+{
+   int i;
+   GPIOWrite(SPI_CS_PIN, 1);
+   GPIOWrite(SPI_CS_PIN, 0);
+   GPIOWrite(SPI_CLK_PIN, 0);
+
+   GPIOWrite(SPI_MOSI_PIN, 1);
+   GPIOWrite(SPI_CLK_PIN, 1);
+   GPIOWrite(SPI_CLK_PIN, 0);
+
+   GPIOWrite(SPI_MOSI_PIN, 1);
+   GPIOWrite(SPI_CLK_PIN, 1);
+   GPIOWrite(SPI_CLK_PIN, 0);
+
+   for (i = 2; i >= 0; i--)
+     {
+        GPIOWrite(SPI_MOSI_PIN, channel & (1 << i) >> i);
+        GPIOWrite(SPI_CLK_PIN, 1);
+        GPIOWrite(SPI_CLK_PIN, 0);
+     }
+
+   *value = 0;
+   for (i = 10; i > 0; i--)
+     {
+        char bit = 0;
+        GPIOWrite(SPI_CLK_PIN, 1);
+        GPIOWrite(SPI_CLK_PIN, 0);
+        GPIORead(SPI_MISO_PIN, &bit);
+        *value |= bit;
+        *value <<= 1;
+     }
+
+   return EINA_TRUE;
+}
+
+static Eina_Bool
+_spi_poll(void *data EINA_UNUSED)
+{
+   int value = 0;
+   _spi_a2d_read(0, &value);
+   printf("ZZZ %d\n", value);
+   return EINA_TRUE;
+}
+
+static Eina_Bool
+_switch_changed_cb(void *data EINA_UNUSED, Ecore_Fd_Handler *h)
+{
+   char bit;
+   int fd = ecore_main_fd_handler_fd_get(h);
+   lseek(fd, 0, SEEK_SET);
+   read(fd, &bit, 1);
+   GPIORead(SWITCH_PIN, &bit);
+   printf("ZZZ %d\n", bit);
+   return EINA_TRUE;
+//   ecore_timer_add(1, _spi_poll, NULL);
+}
+
 int main(int argc, char **argv)
 {
    eina_init();
    ecore_init();
    ecore_con_init();
+   common_init();
    elm_init(argc, argv);
 
    _server_connect(argc==2?argv[1]:"Car");
@@ -98,6 +183,12 @@ int main(int argc, char **argv)
         Eo *win = elm_win_add(NULL, "App", ELM_WIN_BASIC);
         evas_object_resize(win, 200, 200);
         evas_object_show(win);
+     }
+   else
+     {
+        int switch_fd = GPIO_fd_get_for_interrupt(SWITCH_PIN);
+        ecore_main_fd_handler_add(switch_fd, ECORE_FD_ERROR, _switch_changed_cb, NULL, NULL, NULL);
+        _spi_init();
      }
    elm_run();
 

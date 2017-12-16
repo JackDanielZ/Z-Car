@@ -5,9 +5,6 @@
 
 static Ecore_Con_Client *_c = NULL;
 
-#define IN  "in"
-#define OUT "out"
-
 typedef struct
 {
    int in1_pin;

@@ -95,11 +95,37 @@ GPIODirection(int pin, const char *dir)
 }
 
 #define VALUE_MAX 30
-Eina_Bool
-GPIORead(int pin, int *value)
+int
+GPIO_fd_get_for_interrupt(int pin)
 {
    char path[VALUE_MAX];
-   char value_str[3];
+   int fd;
+
+   if (is_test) return -1;
+
+   snprintf(path, VALUE_MAX, "/sys/class/gpio/gpio%d/edge", pin);
+   fd = open(path, O_WRONLY);
+   if (-1 == write(fd, "both", 5))
+     {
+        fprintf(stderr, "Failed to set the interrupt edge to 'both'!\n");
+        close(fd);
+        return EINA_FALSE;
+     }
+   close(fd);
+
+   snprintf(path, VALUE_MAX, "/sys/class/gpio/gpio%d/value", pin);
+   fd = open(path, O_RDONLY);
+   if (-1 == fd)
+     {
+        fprintf(stderr, "Failed to open gpio value for reading!\n");
+     }
+   return fd;
+}
+
+Eina_Bool
+GPIORead(int pin, char *value)
+{
+   char path[VALUE_MAX];
    int fd;
 
    *value = 0;
@@ -112,21 +138,21 @@ GPIORead(int pin, int *value)
         fprintf(stderr, "Failed to open gpio value for reading!\n");
         return EINA_FALSE;
      }
-
-   if (-1 == read(fd, value_str, 3))
+   if (-1 == read(fd, value, 1))
      {
         fprintf(stderr, "Failed to read value!\n");
+        close(fd);
         return EINA_FALSE;
      }
 
    close(fd);
 
-   *value = *value_str - '0';
+   *value -= '0';
    return EINA_TRUE;
 }
 
 Eina_Bool
-GPIOWrite(int pin, int value)
+GPIOWrite(int pin, char value)
 {
    if (is_test) return EINA_TRUE;
    static const char s_values_str[] = "01";

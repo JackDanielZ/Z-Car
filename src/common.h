@@ -12,6 +12,9 @@
 
 #define CAR_PORT 1111
 
+#define IN  "in"
+#define OUT "out"
+
 extern Eina_Bool is_test;
 
 void common_init(void);
@@ -24,8 +27,10 @@ Eina_Bool GPIOExists(int pin);
 
 Eina_Bool GPIODirection(int pin, const char *dir);
 
-Eina_Bool GPIORead(int pin, int *value);
+int GPIO_fd_get_for_interrupt(int pin);
 
-Eina_Bool GPIOWrite(int pin, int value);
+Eina_Bool GPIORead(int pin, char *value);
+
+Eina_Bool GPIOWrite(int pin, char value);
 
 #endif
