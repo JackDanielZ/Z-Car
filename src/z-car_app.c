@@ -90,12 +90,15 @@ int main(int argc, char **argv)
 
    _server_connect(argc==2?argv[1]:"Car");
 
-   ecore_event_handler_add(ECORE_EVENT_KEY_DOWN, _keyboard_event, NULL);
-   ecore_event_handler_add(ECORE_EVENT_KEY_UP, _keyboard_event, NULL);
+   if (is_test)
+     {
+        ecore_event_handler_add(ECORE_EVENT_KEY_DOWN, _keyboard_event, NULL);
+        ecore_event_handler_add(ECORE_EVENT_KEY_UP, _keyboard_event, NULL);
 
-   Eo *win = elm_win_add(NULL, "App", ELM_WIN_BASIC);
-   evas_object_resize(win, 200, 200);
-   evas_object_show(win);
+        Eo *win = elm_win_add(NULL, "App", ELM_WIN_BASIC);
+        evas_object_resize(win, 200, 200);
+        evas_object_show(win);
+     }
    elm_run();
 
    elm_shutdown();
