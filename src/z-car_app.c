@@ -1,6 +1,9 @@
 #include "common.h"
 
 static Ecore_Con_Server *_s = NULL, *_l = NULL;
+static Ecore_Timer *_joystick_pos_status_timer = NULL;
+static Ecore_Timer *_spi_timer = NULL;
+static Eina_Bool _joystick_pos_active = EINA_FALSE;
 
 static Eina_Bool
 _conn_add(void *data EINA_UNUSED, int type EINA_UNUSED, void *event)
@@ -114,28 +117,38 @@ _spi_a2d_read(int channel, int *value)
    GPIOWrite(SPI_CS_PIN, 0);
    GPIOWrite(SPI_CLK_PIN, 0);
 
+   /* Start byte */
+   GPIOWrite(SPI_MOSI_PIN, 0);
+   for (i = 0; i < 7; i++)
+     {
+        GPIOWrite(SPI_CLK_PIN, 0);
+        GPIOWrite(SPI_CLK_PIN, 1);
+     }
+   GPIOWrite(SPI_CLK_PIN, 0);
    GPIOWrite(SPI_MOSI_PIN, 1);
    GPIOWrite(SPI_CLK_PIN, 1);
-   GPIOWrite(SPI_CLK_PIN, 0);
 
+   /* SGL/DIFF */
+   GPIOWrite(SPI_CLK_PIN, 0);
    GPIOWrite(SPI_MOSI_PIN, 1);
    GPIOWrite(SPI_CLK_PIN, 1);
-   GPIOWrite(SPI_CLK_PIN, 0);
 
+   /* D2 D1 D0 */
    for (i = 2; i >= 0; i--)
      {
-        GPIOWrite(SPI_MOSI_PIN, channel & (1 << i) >> i);
-        GPIOWrite(SPI_CLK_PIN, 1);
         GPIOWrite(SPI_CLK_PIN, 0);
+        GPIOWrite(SPI_MOSI_PIN, (channel & (1 << i)) >> i);
+        GPIOWrite(SPI_CLK_PIN, 1);
      }
 
+   /* 2 NULL bits + B9...B0 */
    *value = 0;
-   for (i = 10; i > 0; i--)
+   for (i = 0; i < 12; i++)
      {
         char bit = 0;
         GPIOWrite(SPI_CLK_PIN, 1);
-        GPIOWrite(SPI_CLK_PIN, 0);
         GPIORead(SPI_MISO_PIN, &bit);
+        GPIOWrite(SPI_CLK_PIN, 0);
         *value |= bit;
         *value <<= 1;
      }
@@ -146,9 +159,60 @@ _spi_a2d_read(int channel, int *value)
 static Eina_Bool
 _spi_poll(void *data EINA_UNUSED)
 {
-   int value = 0;
-   _spi_a2d_read(0, &value);
-   printf("ZZZ %d\n", value);
+   static signed char _vpressure = 0, _hpressure = 0;
+   int valueX = 0, valueY = 0;
+   int old_vpressure = _vpressure, old_hpressure = _hpressure;
+
+   _spi_a2d_read(0, &valueX);
+   _spi_a2d_read(1, &valueY);
+
+   if (valueX < 400) _hpressure = -128;
+   else if (valueX > 600) _hpressure = 127;
+   else _hpressure = 0;
+
+   if (valueY < 400) _vpressure = 127;
+   else if (valueY > 600) _vpressure = -128;
+   else _vpressure = 0;
+
+   if (_hpressure || _vpressure) _joystick_pos_active = EINA_TRUE;
+
+   if (old_vpressure != _vpressure || old_hpressure != _hpressure)
+     {
+        printf("Pressure: (%d, %d) -> (%d, %d)\n",
+              old_vpressure, old_hpressure,
+              _vpressure, _hpressure);
+        if (_s)
+          {
+             char tmp[2];
+             tmp[0] = _vpressure;
+             tmp[1] = _hpressure;
+             ecore_con_server_send(_s, tmp, 2);
+             ecore_con_server_flush(_s);
+          }
+     }
+   return EINA_TRUE;
+}
+
+static Eina_Bool
+_joystick_pos_status_check(void *data EINA_UNUSED)
+{
+   static int n = 0;
+   if (_joystick_pos_active)
+     {
+        _joystick_pos_active = EINA_FALSE;
+        n = 10;
+     }
+   else
+     {
+        n--;
+        if (!n)
+          {
+             ecore_timer_del(_spi_timer);
+             _spi_timer = NULL;
+             _joystick_pos_status_timer = NULL;
+             return EINA_FALSE;
+          }
+     }
    return EINA_TRUE;
 }
 
@@ -159,10 +223,16 @@ _switch_changed_cb(void *data EINA_UNUSED, Ecore_Fd_Handler *h)
    int fd = ecore_main_fd_handler_fd_get(h);
    lseek(fd, 0, SEEK_SET);
    read(fd, &bit, 1);
-   GPIORead(SWITCH_PIN, &bit);
-   printf("ZZZ %d\n", bit);
+   if (!_spi_timer)
+     {
+        _spi_timer = ecore_timer_add(0.1, _spi_poll, NULL); // change to 0.1
+     }
+   if (!_joystick_pos_status_timer)
+     {
+        _joystick_pos_status_timer = ecore_timer_add(1, _joystick_pos_status_check, NULL);
+        _joystick_pos_active = EINA_TRUE;
+     }
    return EINA_TRUE;
-//   ecore_timer_add(1, _spi_poll, NULL);
 }
 
 int main(int argc, char **argv)
@@ -186,9 +256,9 @@ int main(int argc, char **argv)
      }
    else
      {
+        _spi_init();
         int switch_fd = GPIO_fd_get_for_interrupt(SWITCH_PIN);
         ecore_main_fd_handler_add(switch_fd, ECORE_FD_ERROR, _switch_changed_cb, NULL, NULL, NULL);
-        _spi_init();
      }
    elm_run();
 
